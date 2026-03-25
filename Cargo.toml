@@ -1,0 +1,19 @@
+[package]
+name = "nixify"
+version = "0.1.0"
+edition = "2021"
+description = "Auto-detect project languages and generate working Nix flakes"
+license = "MIT"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+miette = { version = "7", features = ["fancy"] }
+thiserror = "2"
+toml = "0.8"
+serde = { version = "1", features = ["derive"] }
+colored = "2"
+similar = "2"
+
+[dev-dependencies]
+insta = "1"
+tempfile = "3"
