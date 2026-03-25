@@ -1,0 +1,117 @@
+---
+source: src/generate/mod.rs
+expression: result.content
+---
+{
+  description = "A multi-language project";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    crane.url = "github:ipetkov/crane";
+    flake-parts.url = "github:hercules-ci/flake-parts";
+    poetry2nix.url = "github:nix-community/poetry2nix";
+    
+  };
+
+  outputs = inputs@{ self, nixpkgs, crane, flake-parts, poetry2nix,  }:
+    flake-parts.lib.mkFlake { inherit inputs; } {
+      systems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
+
+      perSystem = { pkgs, system, ... }:
+        let
+          craneLib = crane.mkLib pkgs;
+          poetry2nix = poetry2nix.lib.mkPoetry2Nix { inherit pkgs; };
+
+          # Rust
+          commonArgs = {
+            src = craneLib.cleanCargoSource ./.;
+            strictDeps = true;
+
+            buildInputs = [
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+              pkgs.libiconv
+            ];
+          };
+
+          cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+
+          crate = craneLib.buildPackage (commonArgs // {
+            inherit cargoArtifacts;
+          });
+
+          # Python
+          pythonApp = poetry2nix.mkPoetryApplication {
+          projectDir = ./.;
+        };
+          
+        in
+        {
+          checks = {
+            inherit crate;
+
+            crate-clippy = craneLib.cargoClippy (commonArgs // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--all-targets -- --deny warnings";
+            });
+
+            crate-fmt = craneLib.cargoFmt {
+              src = craneLib.cleanCargoSource ./.;
+            };
+
+            crate-test = craneLib.cargoNextest (commonArgs // {
+              inherit cargoArtifacts;
+              partitions = 1;
+              partitionType = "count";
+            });
+
+            python-lint = pkgs.runCommand "python-lint" {
+            nativeBuildInputs = [ pkgs.ruff ];
+          } ''
+            cd ${./.}
+            ruff check .
+            touch $out
+          '';
+
+          python-typecheck = pkgs.runCommand "python-typecheck" {
+            nativeBuildInputs = [ pkgs.mypy ];
+          } ''
+            cd ${./.}
+            mypy .
+            touch $out
+          '';
+            
+          };
+
+          packages = {
+            default = crate;
+            rust = crate;
+            python = pythonApp;
+          };
+
+          devShells.default = pkgs.mkShell {
+            packages = with pkgs; [
+              # Rust
+              rustc
+              cargo
+              rust-analyzer
+              clippy
+              rustfmt
+              cargo-watch
+
+              # Python
+              python3
+            poetry
+            ruff
+            mypy
+
+            ];
+
+            inputsFrom = [
+              crate
+              pythonApp
+            ];
+
+          };
+        };
+    };
+}

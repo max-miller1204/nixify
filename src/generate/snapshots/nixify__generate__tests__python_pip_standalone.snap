@@ -1,0 +1,62 @@
+---
+source: src/generate/mod.rs
+expression: result.content
+---
+{
+  description = "Nix flake for my-pip-app";
+
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    
+  };
+
+  outputs = { self, nixpkgs, flake-utils,  }:
+    flake-utils.lib.eachDefaultSystem (system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        
+        pythonApp = pkgs.python3Packages.buildPythonApplication {
+          pname = "my-pip-app";
+          version = "0.1.0";
+          src = ./.;
+          format = "setuptools";
+        };
+        
+      in
+      {
+        checks = {
+          python-lint = pkgs.runCommand "python-lint" {
+            nativeBuildInputs = [ pkgs.ruff ];
+          } ''
+            cd ${./.}
+            ruff check .
+            touch $out
+          '';
+
+          python-typecheck = pkgs.runCommand "python-typecheck" {
+            nativeBuildInputs = [ pkgs.mypy ];
+          } ''
+            cd ${./.}
+            mypy .
+            touch $out
+          '';
+          
+        };
+
+        packages.default = pythonApp;
+
+        devShells.default = pkgs.mkShell {
+          packages = with pkgs; [
+            python3
+            python3Packages.pip
+            ruff
+            mypy
+            
+          ];
+
+          inputsFrom = [ pythonApp ];
+
+        };
+      });
+}

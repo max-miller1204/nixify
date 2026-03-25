@@ -1,7 +1,12 @@
 use clap::{Parser, Subcommand};
-use miette::Result;
+use miette::{IntoDiagnostic, Result};
 use std::path::PathBuf;
 
+use nixify::commands::check::run_check;
+use nixify::commands::init::{resolve_config, run_init, InitOptions};
+use nixify::commands::update::run_update;
+use nixify::detect::detect_project;
+use nixify::generate::generate;
 use nixify::types::FlakeStyle;
 
 #[derive(Parser)]
@@ -71,22 +76,35 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Init { .. } => {
-            // Will be wired up by Unit 3
-            eprintln!("nixify init: not yet implemented");
+        Commands::Init {
+            path,
+            dry_run,
+            diff,
+            style,
+            force,
+            no_check,
+            config,
+            lang: _,
+        } => {
+            let options = InitOptions {
+                path: path.clone(),
+                dry_run,
+                diff,
+                style,
+                force,
+                no_check,
+                config_path: config,
+            };
+
+            let project_info = detect_project(&path).into_diagnostic()?;
+            let flake_config = resolve_config(&options).into_diagnostic()?;
+            let generated = generate(&project_info, &flake_config).into_diagnostic()?;
+
+            run_init(&project_info, &generated, &options).into_diagnostic()?;
+
             Ok(())
         }
-        Commands::Check { .. } => {
-            eprintln!("nixify check: not yet implemented");
-            Ok(())
-        }
-        Commands::Update { .. } => {
-            use colored::Colorize;
-            println!(
-                "{} `nixify update` is coming soon! For now, re-run `nixify init`.",
-                "info:".cyan().bold()
-            );
-            Ok(())
-        }
+        Commands::Check { path } => run_check(&path).into_diagnostic(),
+        Commands::Update { .. } => run_update().into_diagnostic(),
     }
 }

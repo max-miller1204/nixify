@@ -1,0 +1,13 @@
+[devshell]
+extra_packages = ["ripgrep", "fd"]
+shell_hook = "echo 'Welcome to the dev environment!'"
+env_vars = { DATABASE_URL = "postgres://localhost/dev" }
+
+[inputs]
+extra = { my-overlay = "github:someone/overlay" }
+
+[flake]
+style = "flake-parts"
+
+[overlays]
+extra = ["my-overlay.overlays.default"]

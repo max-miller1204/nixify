@@ -13,8 +13,22 @@
         pkgs = nixpkgs.legacyPackages.${system};
         craneLib = crane.mkLib pkgs;
 
+        # Include non-Rust files needed for build (templates) and tests (fixtures, snapshots)
+        extraFilter = path: _type:
+          (builtins.match ".*\\.nix$" path != null) ||
+          (builtins.match ".*\\.snap$" path != null) ||
+          (builtins.match ".*\\.toml$" path != null) ||
+          (builtins.match ".*\\.py$" path != null) ||
+          (builtins.match ".*\\.txt$" path != null) ||
+          (builtins.match ".*\\.lock$" path != null);
+        srcFilter = path: type:
+          (extraFilter path type) || (craneLib.filterCargoSources path type);
+
         commonArgs = {
-          src = craneLib.cleanCargoSource ./.;
+          src = pkgs.lib.cleanSourceWith {
+            src = ./.;
+            filter = srcFilter;
+          };
           strictDeps = true;
           buildInputs = [ ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
             pkgs.libiconv
@@ -37,7 +51,10 @@
           });
 
           nixify-fmt = craneLib.cargoFmt {
-            src = craneLib.cleanCargoSource ./.;
+            src = pkgs.lib.cleanSourceWith {
+              src = ./.;
+              filter = srcFilter;
+            };
           };
         };
 
