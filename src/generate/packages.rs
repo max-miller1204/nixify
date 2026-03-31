@@ -11,11 +11,18 @@ pub fn render_python_package(info: &ProjectInfo) -> String {
         return String::new();
     };
 
+    let has_packaging_metadata = lang
+        .metadata
+        .get("has_packaging_metadata")
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
     match &lang.build_system {
         BuildSystem::Poetry => r#"pythonApp = poetry2nix.mkPoetryApplication {
           projectDir = ./.;
         };"#
         .to_string(),
+        _ if !has_packaging_metadata => String::new(),
         _ => {
             format!(
                 r#"pythonApp = pkgs.python3Packages.buildPythonApplication {{
@@ -32,12 +39,22 @@ pub fn render_python_package(info: &ProjectInfo) -> String {
 
 /// Render the Python default package reference.
 pub fn render_python_default_package(info: &ProjectInfo) -> String {
-    let has_python = info
+    let python_lang = info
         .languages
         .iter()
-        .any(|l| l.language == Language::Python);
+        .find(|l| l.language == Language::Python);
 
-    if has_python {
+    let Some(lang) = python_lang else {
+        return "null".to_string();
+    };
+
+    let has_packaging_metadata = lang
+        .metadata
+        .get("has_packaging_metadata")
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
+    if has_packaging_metadata {
         "pythonApp".to_string()
     } else {
         "null".to_string()
@@ -46,12 +63,22 @@ pub fn render_python_default_package(info: &ProjectInfo) -> String {
 
 /// Render the Python package output for multi-language flakes.
 pub fn render_python_package_output(info: &ProjectInfo) -> String {
-    let has_python = info
+    let python_lang = info
         .languages
         .iter()
-        .any(|l| l.language == Language::Python);
+        .find(|l| l.language == Language::Python);
 
-    if has_python {
+    let Some(lang) = python_lang else {
+        return String::new();
+    };
+
+    let has_packaging_metadata = lang
+        .metadata
+        .get("has_packaging_metadata")
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
+    if has_packaging_metadata {
         "python = pythonApp;".to_string()
     } else {
         String::new()
@@ -102,12 +129,22 @@ pub fn render_poetry2nix_let(info: &ProjectInfo) -> String {
 
 /// Render the inputsFrom for Python in devShell.
 pub fn render_python_inputs_from(info: &ProjectInfo) -> String {
-    let has_python = info
+    let python_lang = info
         .languages
         .iter()
-        .any(|l| l.language == Language::Python);
+        .find(|l| l.language == Language::Python);
 
-    if has_python {
+    let Some(lang) = python_lang else {
+        return String::new();
+    };
+
+    let has_packaging_metadata = lang
+        .metadata
+        .get("has_packaging_metadata")
+        .map(|v| v == "true")
+        .unwrap_or(true);
+
+    if has_packaging_metadata {
         "pythonApp".to_string()
     } else {
         String::new()
