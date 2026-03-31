@@ -167,6 +167,12 @@ fn detect_project_kind(path: &Path, has_pyproject: bool) -> Result<ProjectKind> 
 
 fn extract_metadata(path: &Path, has_pyproject: bool) -> Result<HashMap<String, String>> {
     let mut metadata = HashMap::new();
+    let has_packaging_metadata =
+        has_pyproject || path.join("setup.py").exists() || path.join("setup.cfg").exists();
+    metadata.insert(
+        "has_packaging_metadata".to_string(),
+        has_packaging_metadata.to_string(),
+    );
 
     if has_pyproject {
         let content = std::fs::read_to_string(path.join("pyproject.toml")).map_err(|e| {
@@ -248,6 +254,10 @@ mod tests {
         let info = detector.detect(dir.path()).unwrap().unwrap();
         assert_eq!(info.language, Language::Python);
         assert_eq!(info.build_system, BuildSystem::Pip);
+        assert_eq!(
+            info.metadata.get("has_packaging_metadata"),
+            Some(&"false".to_string())
+        );
     }
 
     #[test]

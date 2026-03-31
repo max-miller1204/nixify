@@ -68,6 +68,23 @@ mod tests {
         }
     }
 
+    fn python_requirements_only_project() -> ProjectInfo {
+        let mut metadata = HashMap::new();
+        metadata.insert("has_packaging_metadata".to_string(), "false".to_string());
+
+        ProjectInfo {
+            path: PathBuf::from("/tmp/my-python-app"),
+            name: "my-python-app".to_string(),
+            description: Some("A sample Python application".to_string()),
+            languages: vec![LanguageInfo {
+                language: Language::Python,
+                build_system: BuildSystem::Pip,
+                kind: ProjectKind::Library,
+                metadata,
+            }],
+        }
+    }
+
     fn multi_project() -> ProjectInfo {
         ProjectInfo {
             path: PathBuf::from("/tmp/my-multi-app"),
@@ -174,6 +191,16 @@ mod tests {
         assert!(result.content.contains("buildPythonApplication"));
         assert!(!result.content.contains("poetry2nix"));
         insta::assert_snapshot!("python_pip_standalone", result.content);
+    }
+
+    #[test]
+    fn test_python_requirements_only_standalone() {
+        let result = generate(&python_requirements_only_project(), &default_config()).unwrap();
+        assert!(!result.content.contains("buildPythonApplication"));
+        assert!(!result.content.contains("pythonApp ="));
+        assert!(result.content.contains("packages.default = null;"));
+        assert!(result.content.contains("inputsFrom = [  ];"));
+        insta::assert_snapshot!("python_requirements_only_standalone", result.content);
     }
 
     // === Python flake-parts tests ===
